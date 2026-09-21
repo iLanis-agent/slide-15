@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fifteen - the sliding puzzle</title>
+<style>
+  :root { --bg:#12161a; --panel:#1b222a; --line:#2c3844; --text:#ecf1f6; --dim:#8d9aa8; --accent:#f2a65e; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:26px 14px 40px; }
+  h1 { font-size:30px; }
+  .sub { color:var(--dim); margin:6px 0 16px; font-size:14px; }
+  #grid { display:grid; grid-template-columns:repeat(4,84px); grid-template-rows:repeat(4,84px); gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; }
+  .tile { background:#24313d; border:1px solid var(--line); border-radius:10px; font-size:30px; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .1s, transform .1s; }
+  .tile:hover { background:#2c3d4d; }
+  .tile.blank { background:transparent; border:none; cursor:default; }
+  .tile.home { color:var(--accent); }
+  #hud { display:flex; gap:20px; align-items:center; margin-top:18px; flex-wrap:wrap; justify-content:center; }
+  #moves { font-size:16px; font-weight:700; }
+  button { background:var(--accent); color:#12161a; border:none; border-radius:9px; padding:9px 22px; font-size:14px; font-weight:700; cursor:pointer; }
+  #status { margin-top:12px; min-height:22px; font-size:15px; text-align:center; }
+  #best { margin-top:4px; color:var(--dim); font-size:13px; }
+  .foot { margin-top:16px; color:var(--dim); font-size:13px; }
+  a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<h1>Fifteen</h1>
+<div class="sub">slide the tiles back into order - every shuffle is solvable</div>
+
+<div id="grid"></div>
+<div id="hud">
+  <span id="moves">moves: 0</span>
+  <button id="shuffle">Shuffle</button>
+</div>
+<div id="status"></div>
+<div id="best"></div>
+<div class="foot"><a href="index.html">&larr; about</a></div>
+
+<script src="engine.js?v=1"></script>
+<script>
+(function () {
+  var SIZE = 4;
+  var gridEl = document.getElementById('grid');
+  var movesEl = document.getElementById('moves');
+  var statusEl = document.getElementById('status');
+  var bestEl = document.getElementById('best');
+
+  var board, moves, over;
+
+  function loadBest() { try { return parseInt(localStorage.getItem('fifteen-best')) || 0; } catch (e) { return 0; } }
+  function saveBest(v) { try { localStorage.setItem('fifteen-best', String(v)); } catch (e) {} }
+  function renderBest() { bestEl.textContent = loadBest() ? 'best solve: ' + loadBest() + ' moves' : 'no solves yet'; }
+
+  function newGame() {
+    board = Fifteen.shuffle(SIZE, Math.random, 150);
+    moves = 0;
+    over = false;
+    statusEl.textContent = '';
+    render();
+  }
+
+  function render() {
+    gridEl.innerHTML = '';
+    for (var i = 0; i < board.length; i++) {
+      (function (idx) {
+        var t = document.createElement('div');
+        var v = board[idx];
+        if (v === 0) {
+          t.className = 'tile blank';
+        } else {
+          t.className = 'tile' + (v === idx + 1 ? ' home' : '');
+          t.textContent = v;
+          t.addEventListener('click', function () { play(idx); });
+        }
+        gridEl.appendChild(t);
+      })(i);
+    }
+    movesEl.textContent = 'moves: ' + moves;
+  }
+
+  function play(idx) {
+    if (over) return;
+    var next = Fifteen.move(board, SIZE, idx);
+    if (!next) return;
+    board = next;
+    moves++;
+    if (Fifteen.isSolved(board)) {
+      over = true;
+      if (!loadBest() || moves < loadBest()) saveBest(moves);
+      statusEl.textContent = 'Solved in ' + moves + ' moves!';
+      renderBest();
+    }
+    render();
+  }
+
+  document.getElementById('shuffle').addEventListener('click', newGame);
+
+  // test hook
+  window.__fifteen = {
+    state: function () { return { board: board.slice(), moves: moves, over: over }; },
+    setBoard: function (b, m) { board = b.slice(); moves = m || 0; over = false; render(); }
+  };
+
+  newGame();
+  renderBest();
+})();
+</script>
+</body>
+</html>
